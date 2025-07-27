@@ -1,0 +1,60 @@
+name: Create GitHub Release on Merge to Main
+
+on:
+  push:
+    branches:
+      - main # Dispara el workflow cada vez que hay un push a la rama main (esto incluye merges de PRs)
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    # Se ejecuta solo si el push es un merge de una Pull Request (opcional, pero buena práctica)
+    if: contains(github.event.head_commit.message, 'Merge pull request')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necesario para obtener el historial completo y encontrar tags
+
+      - name: Get latest tag and calculate next version (Simplified Example)
+        id: get_version
+        run: |
+          # Lógica simplificada: Esto es solo un ejemplo.
+          # En un caso real, necesitarías una forma más robusta de calcular la versión
+          # basada en Conventional Commits o un archivo de versión.
+          # Por ejemplo, podrías parsear los commits desde el último tag.
+
+          # Ejemplo muy básico: solo incrementa el número de "patch"
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Último tag encontrado: $LATEST_TAG"
+          IFS='.' read -r -a VERSION_PARTS <<< "${LATEST_TAG#v}"
+          MAJOR=${VERSION_PARTS[0]:-0}
+          MINOR=${VERSION_PARTS[1]:-0}
+          PATCH=${VERSION_PARTS[2]:-0}
+          NEXT_PATCH=$((PATCH + 1))
+          NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+          # Generar notas de la release (ejemplo básico, idealmente sería más sofisticado)
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            RELEASE_NOTES="Initial release."
+          else
+            RELEASE_NOTES=$(git log --pretty=format:"* %s" $PREVIOUS_TAG..HEAD)
+          fi
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: ${{ steps.get_version.outputs.next_version }} # Solo si se pudo calcular una versión
+        with:
+          tag_name: ${{ steps.get_version.outputs.next_version }}
+          name: Release ${{ steps.get_version.outputs.next_version }}
+          body: ${{ steps.get_version.outputs.release_notes }}
+          draft: false # Si quieres que sea un borrador para revisión
+          prerelease: false # Si es una versión pre-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Token automático proporcionado por GitHub Actions
