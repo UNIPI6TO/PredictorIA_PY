@@ -5,7 +5,11 @@ on:
     types:
       - closed
     branches:
-      - main # Cambiamos de 'master' a 'main'
+      - main 
+      
+permissions: 
+  contents: write 
+  pull-requests: read 
 
 jobs:
   create_semver_release:
