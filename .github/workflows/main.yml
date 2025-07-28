@@ -1,18 +1,14 @@
-name: Generate Release on Master Merge
+name: Generate Release on Main Merge (SemVer)
 
 on:
   pull_request:
     types:
       - closed
     branches:
-      - main
-
-permissions: # <-- Añade esta sección
-  contents: write # Permiso para escribir en el repositorio (necesario para tags y releases)
-  pull-requests: write # Permiso para leer información de Pull Requests (necesario para el título y cuerpo del PR)
+      - main # Cambiamos de 'master' a 'main'
 
 jobs:
-  create_release:
+  create_semver_release:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
 
@@ -20,7 +16,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Necesario para obtener el historial completo y los tags
+
+      # Permisos para el GITHUB_TOKEN (importante para que no falle el push del tag)
+      - name: Configure Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag found: $LATEST_TAG"
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
 
       - name: Get PR title and body
         id: pr_info
@@ -30,26 +39,83 @@ jobs:
           echo "PR_TITLE=$PR_TITLE" >> $GITHUB_OUTPUT
           echo "PR_BODY=$PR_BODY" >> $GITHUB_OUTPUT
 
-      - name: Generate version number
-        id: generate_version
+      - name: Determine SemVer increment
+        id: semver_increment
         run: |
-          VERSION=$(date +'%Y%m%d%H%M%S')
-          echo "Generated version: $VERSION"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          # Obtener el mensaje del commit de fusión del PR.
+          # GitHub genera un commit de fusión cuyo mensaje por defecto es "Merge pull request #<PR_number> from <branch_name>"
+          # seguido del título del PR. A veces se puede añadir texto adicional.
+          # Para SemVer, es más robusto analizar los mensajes de los commits dentro del PR
+          # o el título/cuerpo del PR si siguen una convención.
+
+          # En este ejemplo, vamos a buscar palabras clave en el título o cuerpo del PR.
+          # Puedes ajustar esta lógica según tu convención de commits/PRs.
+
+          PR_MESSAGE="${{ steps.pr_info.outputs.PR_TITLE }} ${{ steps.pr_info.outputs.PR_BODY }}"
+          INCREMENT_TYPE="patch" # Default a patch
+
+          if echo "$PR_MESSAGE" | grep -iqE "(BREAKING CHANGE|major!)"; then
+            INCREMENT_TYPE="major"
+          elif echo "$PR_MESSAGE" | grep -iqE "(feat|feature|minor!)"; then
+            INCREMENT_TYPE="minor"
+          elif echo "$PR_MESSAGE" | grep -iqE "(fix|bugfix|patch!)"; then
+            INCREMENT_TYPE="patch"
+          fi
+
+          echo "Determined increment type: $INCREMENT_TYPE"
+          echo "INCREMENT_TYPE=$INCREMENT_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Calculate next SemVer version
+        id: calculate_version
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.LATEST_TAG }}"
+          INCREMENT_TYPE="${{ steps.semver_increment.outputs.INCREMENT_TYPE }}"
+
+          # Eliminar la 'v' inicial si existe para trabajar solo con números
+          CURRENT_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          NEXT_MAJOR=$MAJOR
+          NEXT_MINOR=$MINOR
+          NEXT_PATCH=$PATCH
+
+          case "$INCREMENT_TYPE" in
+            "major")
+              NEXT_MAJOR=$((MAJOR + 1))
+              NEXT_MINOR=0
+              NEXT_PATCH=0
+              ;;
+            "minor")
+              NEXT_MINOR=$((MINOR + 1))
+              NEXT_PATCH=0
+              ;;
+            "patch")
+              NEXT_PATCH=$((PATCH + 1))
+              ;;
+            *)
+              echo "Error: Invalid increment type '$INCREMENT_TYPE'"
+              exit 1
+              ;;
+          esac
+
+          NEXT_VERSION="v${NEXT_MAJOR}.${NEXT_MINOR}.${NEXT_PATCH}"
+          echo "Next calculated version: $NEXT_VERSION"
+          echo "NEXT_VERSION=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create tag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a v${{ steps.generate_version.outputs.VERSION }} -m "Release v${{ steps.generate_version.outputs.VERSION }}"
-          git push origin v${{ steps.generate_version.outputs.VERSION }} # Aquí es donde fallaba sin permisos
+          TAG_NAME="${{ steps.calculate_version.outputs.NEXT_VERSION }}"
+          echo "Creating tag: $TAG_NAME"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
 
       - name: Create release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.generate_version.outputs.VERSION }}
+          tag_name: ${{ steps.calculate_version.outputs.NEXT_VERSION }}
           release_name: ${{ steps.pr_info.outputs.PR_TITLE }}
           body: ${{ steps.pr_info.outputs.PR_BODY }}
           draft: false
