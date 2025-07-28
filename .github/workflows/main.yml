@@ -7,6 +7,10 @@ on:
     branches:
       - main
 
+permissions: # <-- Añade esta sección
+  contents: write # Permiso para escribir en el repositorio (necesario para tags y releases)
+  pull-requests: write # Permiso para leer información de Pull Requests (necesario para el título y cuerpo del PR)
+
 jobs:
   create_release:
     runs-on: ubuntu-latest
@@ -16,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necesario para obtener el historial completo para tags
+          fetch-depth: 0
 
       - name: Get PR title and body
         id: pr_info
@@ -38,7 +42,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a v${{ steps.generate_version.outputs.VERSION }} -m "Release v${{ steps.generate_version.outputs.VERSION }}"
-          git push origin v${{ steps.generate_version.outputs.VERSION }}
+          git push origin v${{ steps.generate_version.outputs.VERSION }} # Aquí es donde fallaba sin permisos
 
       - name: Create release
         uses: actions/create-release@v1
