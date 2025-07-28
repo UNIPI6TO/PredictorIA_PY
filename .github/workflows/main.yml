@@ -1,4 +1,4 @@
-name: Generate Release on Main Merge (SemVer)
+name: Generate Release
 
 on:
   pull_request:
