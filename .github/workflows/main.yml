@@ -10,12 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     # Se ejecuta solo si el push es un merge de una Pull Request (opcional, pero buena práctica)
     if: contains(github.event.head_commit.message, 'Merge pull request')
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repository # Este paso sigue usando el GITHUB_TOKEN por defecto para el repo actual
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Necesario para obtener el historial completo y encontrar tags
+
+      # --- AÑADIR UN NUEVO PASO DONDE USARÍAS MY_PERSONAL_TOKEN ---
+      - name: Clonar otro repositorio privado (usando MY_PERSONAL_TOKEN)
+        # Este paso es solo un ejemplo. Adaptalo a tu necesidad real.
+        run: |
+          # Configura Git para usar el token en la URL de clonación
+          git config --global url."https://x-access-token:${{ secrets.MY_PERSONAL_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          
+          # Clona el repositorio. ASEGÚRATE DE CAMBIAR 'tu-usuario/tu-otro-repo-privado'
+          # por el usuario/organización y el nombre real del repositorio que quieres clonar.
+          git clone https://github.com/tu-usuario/tu-otro-repo-privado.git
+          
+          echo "Se ha clonado 'tu-otro-repo-privado' en $(pwd)/tu-otro-repo-privado"
+        env:
+          # Es buena práctica explicitar que este paso podría usar el token, aunque el git config ya lo haga
+          # No es estrictamente necesario aquí si el 'git config' ya lo maneja.
+          # MY_PERSONAL_TOKEN: ${{ secrets.MY_PERSONAL_TOKEN }} # No es necesario si se inyecta en la URL
+          # Pero si haces operaciones 'git push' o 'git fetch' a otro repo después, puede ser útil.
+          # Sin embargo, el 'git config' ya establece la autenticación para cualquier operación posterior a github.com
+          # con ese token.
+          DUMMY_VAR: 'Just to show env block' # Puedes eliminar esto, es solo para mostrar el bloque env.
+      # -----------------------------------------------------------------
 
       - name: Get latest tag and calculate next version (Simplified Example)
         id: get_version
@@ -24,7 +45,6 @@ jobs:
           # En un caso real, necesitarías una forma más robusta de calcular la versión
           # basada en Conventional Commits o un archivo de versión.
           # Por ejemplo, podrías parsear los commits desde el último tag.
-
           # Ejemplo muy básico: solo incrementa el número de "patch"
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Último tag encontrado: $LATEST_TAG"
@@ -35,7 +55,6 @@ jobs:
           NEXT_PATCH=$((PATCH + 1))
           NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-
           # Generar notas de la release (ejemplo básico, idealmente sería más sofisticado)
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           if [ -z "$PREVIOUS_TAG" ]; then
@@ -57,4 +76,5 @@ jobs:
           draft: false # Si quieres que sea un borrador para revisión
           prerelease: false # Si es una versión pre-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }} # Token automático proporcionado por GitHub Actions
+          # ESTE PASO SIGUE USANDO EL GITHUB_TOKEN AUTOMÁTICO, ¡LO CUAL ES CORRECTO PARA CREAR RELEASES!
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Token automático proporcionado por GitHub Actions
