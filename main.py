@@ -7,7 +7,7 @@ import pandas as pd
 app = FastAPI()
 
 # Definir el modelo de datos para la entrada de la API
-class perfilPersonalidad(BaseModel):
+class PerfilPersonalidad(BaseModel):
     Extroversión: float
     Responsabilidad: float
     Amabilidad: float
@@ -23,12 +23,12 @@ def read_root():
     return {"mensaje": "API para predicción de personalidad"}
 
 @app.post("/predecir_personalidad_rasgos/")
-def predecir_personalidad(perfil: perfilPersonalidad):
+def predecir_personalidad(perfil: PerfilPersonalidad):
     """
     Realiza una predicción de perfil de personalidad.
     """
     # Convertir los datos de entrada a un DataFrame de pandas
-    datos_df = pd.DataFrame({perfil.dict()})
+    datos_df = pd.DataFrame([perfil.dict()])
 
     # Realizar la predicción
     prediccion = modelo.predict(datos_df)
