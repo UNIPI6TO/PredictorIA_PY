@@ -1,9 +1,19 @@
 # Test your FastAPI endpoints
 
-GET http://127.0.0.1:8000/
+GET http://127.0.0.1:8000/info
 Accept: application/json
 ###
 
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
+POST /predecir_personalidad_rasgos/ HTTP/1.1
+Content-Type: application/json
+Host: 127.0.0.1:8000
+Content-Length: 118
+
+{
+  "Extroversión": "5",
+  "Responsabilidad": "2.2",
+  "Amabilidad": "4",
+  "Neuroticismo": "2.1",
+  "Apertura": "5"
+}
 ###
