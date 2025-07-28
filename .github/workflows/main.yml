@@ -25,9 +25,9 @@ jobs:
           
           # Clona el repositorio. ASEGÚRATE DE CAMBIAR 'tu-usuario/tu-otro-repo-privado'
           # por el usuario/organización y el nombre real del repositorio que quieres clonar.
-          git clone https://github.com/tu-usuario/tu-otro-repo-privado.git
+          git clone https://github.com/WilsonSalinasFlores/PredictorIA_PY.git
           
-          echo "Se ha clonado 'tu-otro-repo-privado' en $(pwd)/tu-otro-repo-privado"
+          echo "Se ha clonado 'tu-otro-repo-privado' en $(pwd)/PredictorIA_PY"
         env:
           # Es buena práctica explicitar que este paso podría usar el token, aunque el git config ya lo haga
           # No es estrictamente necesario aquí si el 'git config' ya lo maneja.
