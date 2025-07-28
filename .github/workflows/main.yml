@@ -57,4 +57,4 @@ jobs:
           draft: false # Si quieres que sea un borrador para revisión
           prerelease: false # Si es una versión pre-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Token automático proporcionado por GitHub Actions
+          GITHUB_TOKEN: ${{ secrets.GITHUBTOKEN }} # Token automático proporcionado por GitHub Actions
