@@ -4,6 +4,7 @@ import shutil
 import pickle
 import pandas as pd
 
+from entrenarAutoestima import autoestima_entrenamiento, guardar_modelo_autoestima
 from entrenarModeloPersonalidad import PerfiladorPersonalidad
 from personalidadModel import PerfilPersonalidad
 from fastapi import FastAPI, HTTPException
@@ -46,6 +47,22 @@ def predecir_personalidad(perfil: PerfilPersonalidad):
             data_dict[characteristic] = value
 
     return  data_dict
+@app.get("/predecir_autoestima/")
+def predecir_personalidad(score: float):
+    """
+        score valor del puntaje para predecir la autoestima
+    """
+    modelo = cargar_modelo('modelo_autoestima.pkl')
+
+    # Convert the score to a pandas DataFrame with the correct column name
+    score_df = pd.DataFrame({'Puntuación': [score]})
+
+    # Predict the label for the given score
+    prediction = modelo.predict(score_df)
+
+    return {"autoestima":prediction[0]}
+
+
 
 @app.get("/entrenar_personalidad_rasgos/")
 def entrenar_personalidad(muestras: int = 5000, porcentajePruebas: float = 0.2):
@@ -79,6 +96,30 @@ def entrenar_personalidad(muestras: int = 5000, porcentajePruebas: float = 0.2):
 
     with open(ruta_guardado, 'wb') as f:
         pickle.dump(perfilador.modelo, f)
+    print(f"Modelo guardado exitosamente en {ruta_guardado}")
+    return {"precision": precision, "modelo_path": "temp\\"+nombre_archivo_modelo}
+
+@app.get("/entrenar_autoestima/")
+def entrenar_autoestima(muestras: int = 1000, porcentajePruebas: float = 0.2):
+    #1. Entrenar el modelo
+    print("\nEntrenando autoestima...")
+    precision, model =autoestima_entrenamiento(num_records=muestras, test_size=porcentajePruebas)
+    print("Precision", precision)
+    #2. Guardar el PKL
+    nombre_archivo_modelo = "modelo_autoestima.pkl"
+    temp_dir_in_root = os.path.join(os.getcwd(), "temp")
+
+    try:
+        os.makedirs(temp_dir_in_root, exist_ok=True)
+        print(f"Directorio creado o ya existe: {temp_dir_in_root}")
+    except OSError as e:
+        print(f"Error al crear el directorio {temp_dir_in_root}: {e}")
+        # Puedes decidir si quieres continuar o salir si el directorio no se puede crear
+        return {"error": f"No se pudo crear el directorio: {e}"}
+    ruta_guardado = os.path.join(temp_dir_in_root, nombre_archivo_modelo)  # Esto es más robusto para obtener la ruta actual
+
+    with open(ruta_guardado, 'wb') as f:
+        pickle.dump(model, f)
     print(f"Modelo guardado exitosamente en {ruta_guardado}")
     return {"precision": precision, "modelo_path": "temp\\"+nombre_archivo_modelo}
 
