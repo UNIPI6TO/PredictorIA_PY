@@ -145,4 +145,4 @@ def implementar_modelo(nombre_archivo: str) :
     except Exception as e:
         print(f"Error al mover el archivo '{nombre_archivo}': {e}")
         raise HTTPException(status_code=500, detail="Modelo no implementado "+ e.message +".")
-
+#Nuevo cambio
