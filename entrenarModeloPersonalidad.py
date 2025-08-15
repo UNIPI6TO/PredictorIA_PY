@@ -118,3 +118,5 @@ class PerfiladorPersonalidad:
             raise ValueError(f"Las columnas de 'nuevos_datos' deben ser: {', '.join(self.rasgos)}")
 
         return self.modelo.predict(nuevos_datos[self.rasgos])
+
+    #Comentario 2
